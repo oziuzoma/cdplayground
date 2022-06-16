@@ -31,8 +31,8 @@ jobs:
       - run:
           name: "Run Playbook and Configure server"
           command: |
-            ansible-playbook -i inventory main-remote.yml \
-            --key-file ~/.ssh/id_rsa_6af6fb241f57b0f854939ff96d9a6e59
+            ansible-playbook -i inventory main-remote.yml #\
+            # --key-file ~/.ssh/id_rsa_6af6fb241f57b0f854939ff96d9a6e59
             
       
 
