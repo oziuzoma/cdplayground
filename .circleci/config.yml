@@ -24,7 +24,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           # You csection where you registered th
-          fingerprints: ["6a:f6:fb:24:1f:57:b0:f8:54:93:9f:f9:6d:9a:6e:59"] 
+          fingerprints: ["b1:b3:b9:23:f1:e0:7a:1a:91:8c:dd:3b:7c:85:2c:68"] 
       - run:
           name: "Install Ansible"
           command: |
