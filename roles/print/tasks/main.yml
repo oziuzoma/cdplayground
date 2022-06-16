@@ -1,0 +1,10 @@
+---
+# tasks file for print
+
+ - name: Print env variable
+   shell: echo $PATH
+   register: print_result
+
+ - name: print message
+   debug:
+     msg: "{{ print_result.stdout_lines }}"
