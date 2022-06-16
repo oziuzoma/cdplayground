@@ -23,8 +23,7 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          # You csection where you registered th
-          fingerprints: ["b1:b3:b9:23:f1:e0:7a:1a:91:8c:dd:3b:7c:85:2c:68"] 
+          fingerprints: ["6a:f6:fb:24:1f:57:b0:f8:54:93:9f:f9:6d:9a:6e:59"] 
       - run:
           name: "Install Ansible"
           command: |
@@ -32,7 +31,8 @@ jobs:
       - run:
           name: "Run Playbook and Configure server"
           command: |
-            ansible-playbook -i inventory main-remote.yml
+            ansible-playbook -i inventory main-remote.yml \
+            --key-file ~/.ssh/id_rsa_6af6fb241f57b0f854939ff96d9a6e59
             
       
 
