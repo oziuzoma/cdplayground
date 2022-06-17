@@ -45,9 +45,9 @@ jobs:
   
   smoke_test:
     docker:
-      - image: alpine:latest
+      - image: amazon/aws-cli
     steps:
-      - run: apk add --update curl
+      - run: yum install curl -y #apk add --update curl 
       - run:
           name: smoke test
           command: |
@@ -60,13 +60,8 @@ jobs:
             else
               return 1
             fi
-
-  failure:
-    docker:
-      - image: amazon/aws-cli
-    steps: 
       - destroy_environment
-     
+
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
@@ -78,5 +73,4 @@ workflows:
           #  requires: [create_infrastructure]
       - smoke_test:
           requires: [create_infrastructure]
-      - failure
       
