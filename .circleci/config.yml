@@ -4,6 +4,15 @@ version: 2.1
 orbs:
   aws-cli: circleci/aws-cli@2.0.3
 
+commands:
+  destroy_environment:
+    steps:
+      - run:
+          name: "Destroy environment"
+          when: on_fail
+          command: |
+            aws cloudformation delete-stack --stack-name myStack-${CIRCLE_WORKFLOW_ID:0:7}
+
 jobs:
   create_infrastructure:
     docker:
@@ -15,7 +24,7 @@ jobs:
           command: |
             aws cloudformation deploy \
               --template-file challenge1.yml \
-              --stack-name myStack-${CIRCLE_WORKFLOW_ID:0:5} \
+              --stack-name myStack-${CIRCLE_WORKFLOW_ID:0:7} \
               --region us-east-1
   
   configure_infrastructure: 
@@ -36,26 +45,85 @@ jobs:
   
   smoke_test:
     docker:
-      - image: alpine:latest
+      - image: amazon/aws-cli #alpine:latest
     steps:
-      - run: apk add --update curl
+      - run: yum install curl -y #apk add --update curl 
       - run:
           name: smoke test
           command: |
-            URL="https://blog.udacity.com/"
+            URL="https://blog.udacity5555.com/"
             # URL="http://44.204.66.170:3000"
             # Test if website exists
             if curl -s --head ${URL} 
             then
-              echo "It worked!" #return 0
+              exit 0
             else
-              echo "It failed" #return 1
+              exit 1
             fi
-    
-    
-          
-            
-      
+      - destroy_environment
+
+  create_and_deploy_front_end:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: "Execute bucket.yml - Create Cloudformation Stack"
+          command: |
+            aws cloudformation deploy \
+            --template-file bucket.yml \
+            --stack-name stack-create-bucket-${CIRCLE_WORKFLOW_ID:0:7} \
+            --parameter-overrides MyBucketName="mybucket-${CIRCLE_WORKFLOW_ID:0:7}"
+      # Uncomment the step below if yoou wish to upload all contents of the current directohe S3 bucket
+      - run: aws s3 sync . s3://mybucket-${CIRCLE_WORKFLOW_ID:0:7} --delete
+  
+  get_last_deployment_id:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run: yum install -y tar gzip
+      - run:
+          name: Fetch and save the old pipeline ID (bucket name) responsible for the last release.
+          command: |
+            aws cloudformation \
+            list-exports --query "Exports[?Name==\`PipelineID\`].Value" \
+            --no-paginate --output text > ~/textfile.txt
+      - persist_to_workspace:
+          root: ~/
+          paths: 
+            - textfile.txt
+  
+  promote_to_production:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: "Execute cloudfront.yml"
+          command: |
+            aws --version
+            aws cloudformation deploy \
+            --template-file cloudfront.yml \
+            --stack-name production-distro \
+            --parameter-overrides PipelineID="mybucket-${CIRCLE_WORKFLOW_ID:0:7}"
+  
+  clean_up_old_front_end:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run: yum install -y tar gzip
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Destroy the previous S3 bucket and CloudFormation stack. 
+          # Use $OldBucketID environment variable below.
+          # Similarly, you can create and use $OldStackID environment variable in place of production-distro 
+          command: |
+            export OldBucketID=$(cat ~/textfile.txt)
+            aws s3 rm "s3://${OldBucketID}" --recursive
+
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
@@ -64,5 +132,14 @@ workflows:
     jobs:
       # - create_infrastructure
       # - configure_infrastructure
-      - smoke_test
-      #     requires: [create_infrastructure]
+          #  requires: [create_infrastructure]
+      # - smoke_test:
+          # requires: [create_infrastructure]
+      - create_and_deploy_front_end
+      - promote_to_production:
+          requires: [create_and_deploy_front_end]
+      - get_last_deployment_id
+      - clean_up_old_front_end:
+           requires: [get_last_deployment_id,promote_to_production]
+              
+      
